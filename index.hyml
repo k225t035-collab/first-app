@@ -1,1 +1,178 @@
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, Circle, Trash2, Plus, Trophy } from 'lucide-react';
 
+export default function App() {
+  // 状態の定義
+  const [tasks, setTasks] = useState(() => {
+    // ローカルストレージからタスクを読み込む（初期ロード時）
+    const savedTasks = localStorage.getItem('todo-tasks');
+    return savedTasks ? JSON.parse(savedTasks) : [];
+  });
+  const [inputText, setInputText] = useState('');
+  
+  // 経験値とレベルの状態
+  const [xp, setXp] = useState(() => {
+    const savedXp = localStorage.getItem('todo-xp');
+    return savedXp ? parseInt(savedXp, 10) : 0;
+  });
+
+  // レベル計算（100XPで1レベルアップとする）
+  const xpPerLevel = 100;
+  const currentLevel = Math.floor(xp / xpPerLevel) + 1;
+  const xpInCurrentLevel = xp % xpPerLevel;
+  const progressPercentage = (xpInCurrentLevel / xpPerLevel) * 100;
+
+  // タスクやXPが変更されたらローカルストレージに保存
+  useEffect(() => {
+    localStorage.setItem('todo-tasks', JSON.stringify(tasks));
+    localStorage.setItem('todo-xp', xp.toString());
+  }, [tasks, xp]);
+
+  // タスク追加処理
+  const addTask = (e) => {
+    e.preventDefault();
+    if (inputText.trim() === '') return;
+
+    const newTask = {
+      id: crypto.randomUUID(), // 一意のIDを生成
+      text: inputText,
+      completed: false,
+    };
+    setTasks([...tasks, newTask]);
+    setInputText('');
+  };
+
+  // タスク完了切り替え処理
+  const toggleTask = (id) => {
+    setTasks(tasks.map(task => {
+      if (task.id === id) {
+        const isNowCompleted = !task.completed;
+        // タスクを完了にしたらXPを20追加、未完了に戻したら20減らす
+        if (isNowCompleted) {
+          setXp(prev => prev + 20);
+        } else {
+          setXp(prev => Math.max(0, prev - 20));
+        }
+        return { ...task, completed: isNowCompleted };
+      }
+      return task;
+    }));
+  };
+
+  // タスク削除処理
+  const deleteTask = (id) => {
+    setTasks(tasks.filter(task => task.id !== id));
+  };
+
+  // 完了済みタスクと未完了タスクの数を計算
+  const completedCount = tasks.filter(t => t.completed).length;
+  const totalCount = tasks.length;
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 font-sans">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+        
+        {/* ヘッダー・ステータス部分 */}
+        <div className="bg-indigo-600 p-6 text-white">
+          <h1 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <Trophy className="w-6 h-6 text-yellow-300" />
+            クエストリスト
+          </h1>
+          
+          <div className="bg-white/20 rounded-lg p-4 backdrop-blur-sm">
+            <div className="flex justify-between items-end mb-2">
+              <span className="text-sm font-medium text-indigo-100">
+                Level <span className="text-2xl font-bold text-white">{currentLevel}</span>
+              </span>
+              <span className="text-xs text-indigo-200">
+                {xpInCurrentLevel} / {xpPerLevel} XP
+              </span>
+            </div>
+            {/* 経験値バー */}
+            <div className="w-full bg-indigo-900/50 rounded-full h-2.5 overflow-hidden">
+              <div 
+                className="bg-yellow-400 h-2.5 rounded-full transition-all duration-500 ease-out" 
+                style={{ width: `${progressPercentage}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-indigo-200 mt-2 text-center">
+              タスクを完了して経験値をゲットしよう！
+            </p>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {/* タスク入力フォーム */}
+          <form onSubmit={addTask} className="flex gap-2 mb-6">
+            <input
+              type="text"
+              value={inputText}
+              onChange={(e) => setInputText(e.target.value)}
+              placeholder="新しいタスクを入力..."
+              className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-shadow"
+            />
+            <button
+              type="submit"
+              disabled={!inputText.trim()}
+              className="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Plus className="w-6 h-6" />
+            </button>
+          </form>
+
+          {/* 進行状況テキスト */}
+          <div className="mb-4 text-sm font-medium text-slate-500 flex justify-between">
+            <span>タスク一覧</span>
+            <span>{completedCount} / {totalCount} 完了</span>
+          </div>
+
+          {/* タスクリスト */}
+          <div className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-center text-slate-400 py-6">
+                現在タスクはありません。<br/>新しいクエストを追加しましょう！
+              </p>
+            ) : (
+              tasks.map(task => (
+                <div 
+                  key={task.id} 
+                  className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
+                    task.completed 
+                      ? 'bg-slate-50 border-slate-200 opacity-75' 
+                      : 'bg-white border-slate-200 shadow-sm hover:shadow-md'
+                  }`}
+                >
+                  <button 
+                    onClick={() => toggleTask(task.id)}
+                    className="flex-shrink-0 focus:outline-none"
+                  >
+                    {task.completed ? (
+                      <CheckCircle2 className="w-6 h-6 text-green-500 transition-colors" />
+                    ) : (
+                      <Circle className="w-6 h-6 text-slate-300 hover:text-indigo-400 transition-colors" />
+                    )}
+                  </button>
+                  
+                  <span className={`flex-1 transition-all ${
+                    task.completed ? 'text-slate-500 line-through' : 'text-slate-800'
+                  }`}>
+                    {task.text}
+                  </span>
+
+                  <button 
+                    onClick={() => deleteTask(task.id)}
+                    className="flex-shrink-0 text-slate-400 hover:text-red-500 focus:outline-none transition-colors p-1"
+                    aria-label="削除"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+        
+      </div>
+    </div>
+  );
+}
